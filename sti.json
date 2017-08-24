@@ -2,16 +2,39 @@
     "kind": "List",
     "apiVersion": "v1",
     "metadata": {
-        "name": "sti-spring-boot-kong"
+        "name": "s2i-spring-boot-kong"
     },
     "items": [
         {
             "kind": "BuildConfig",
             "apiVersion": "v1",
             "metadata": {
-                "name": "sti-spring-boot-kong"
+                "name": "s2i-spring-boot-kong-build"
             },
             "spec": {
+                "output": {
+                    "to": {
+                        "kind": "ImageStreamTag",
+                        "name": "s2i-spring-boot-kong:latest"
+                    }
+                },
+                "resources": {},
+                "source": {
+                    "type": "Git",
+                    "git": {
+                        "uri": "https://github.com/lucastheisen/s2i-spring-boot-kong.git",
+                        "ref": "master"
+                    }
+                },
+                "strategy": {
+                    "type": "Docker",
+                    "dockerStrategy": {
+                        "from": {
+                            "kind": "ImageStreamTag",
+                            "name": "centos:centos7"
+                        }
+                    }
+                },
                 "triggers": [
                     {
                         "type": "GitHub",
@@ -29,30 +52,7 @@
                         "type": "ImageChange",
                         "imageChange": {}
                     }
-                ],
-                "source": {
-                    "type": "Git",
-                    "git": {
-                        "uri": "https://github.com/lucastheisen/s2i-spring-boot-kong.git",
-                        "ref": "master"
-                    }
-                },
-                "strategy": {
-                    "type": "Docker",
-                    "dockerStrategy": {
-                        "from": {
-                            "kind": "ImageStreamTag",
-                            "name": "centos:centos7"
-                        }
-                    }
-                },
-                "output": {
-                    "to": {
-                        "kind": "ImageStreamTag",
-                        "name": "s2i-spring-boot-kong:latest"
-                    }
-                },
-                "resources": {}
+                ]
             }
         },
         {
@@ -62,14 +62,14 @@
                 "name": "centos"
             },
             "spec": {
-                "dockerImageRepository": "library/centos:7"
+                "dockerImageRepository": "openshift/base-centos7"
             }
         },
         {
             "kind": "ImageStream",
             "apiVersion": "v1",
             "metadata": {
-                "name": "sti-spring-boot-kong"
+                "name": "s2i-spring-boot-kong"
             },
             "spec": {
                 "dockerImageRepository": "",
