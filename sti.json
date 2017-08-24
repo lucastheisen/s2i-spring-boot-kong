@@ -2,14 +2,14 @@
     "kind": "List",
     "apiVersion": "v1",
     "metadata": {
-        "name": "s2i-spring-boot-kong"
+        "name": "sti-spring-boot-kong"
     },
     "items": [
         {
             "kind": "BuildConfig",
             "apiVersion": "v1",
             "metadata": {
-                "name": "s2i-spring-boot-kong-build"
+                "name": "sti-spring-boot-kong-build"
             },
             "spec": {
                 "output": {
@@ -31,7 +31,7 @@
                     "dockerStrategy": {
                         "from": {
                             "kind": "ImageStreamTag",
-                            "name": "centos:centos7"
+                            "name": "centos:7"
                         }
                     }
                 },
@@ -62,14 +62,14 @@
                 "name": "centos"
             },
             "spec": {
-                "dockerImageRepository": "openshift/base-centos7"
+                "dockerImageRepository": "centos:7"
             }
         },
         {
             "kind": "ImageStream",
             "apiVersion": "v1",
             "metadata": {
-                "name": "s2i-spring-boot-kong"
+                "name": "sti-spring-boot-kong"
             },
             "spec": {
                 "dockerImageRepository": "",
