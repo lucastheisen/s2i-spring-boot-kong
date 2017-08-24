@@ -1,0 +1,193 @@
+#!/bin/bash
+
+# restore maven dependencies downloaded in a previous build,
+# so they do not have to be downloaded again.
+# /tmp/artifacts will only be present in the incremental build scenario
+# in which the target image name is an existing docker image which contains
+# dependencies from a prior build execution.
+function restore_saved_artifacts() {
+  if [ "$(ls -A /tmp/artifacts/ 2>/dev/null)" ]; then
+    echo -n "Restoring saved artifacts from prior build..."
+    mv /tmp/artifacts/.m2/repository $HOME/.m2
+  fi
+}
+
+# insert settings for HTTP proxy into settings.xml if supplied
+function configure_proxy() {
+  xml=""
+  if [ -n "$HTTPS_PROXY_HOST" -a -n "$HTTPS_PROXY_PORT" ]; then
+    xml="$xml\
+      <proxy>\
+      <id>genhttpsproxy</id>\
+      <active>true</active>\
+      <protocol>http</protocol>\
+      <host>$HTTPS_PROXY_HOST</host>\
+      <port>$HTTPS_PROXY_PORT</port>"
+    if [ -n "$HTTPS_PROXY_USERNAME" -a -n "$HTTPS_PROXY_PASSWORD" ]; then
+      xml="$xml\
+        <username>$HTTPS_PROXY_USERNAME</username>\
+        <password>$HTTPS_PROXY_PASSWORD</password>"
+    fi
+    if [ -n "$HTTP_PROXY_NONPROXYHOSTS" ]; then
+      xml="$xml\
+        <nonProxyHosts>$HTTP_PROXY_NONPROXYHOSTS</nonProxyHosts>"
+    fi
+    xml="$xml\
+      </proxy>"
+  fi
+  if [ -n "$HTTP_PROXY_HOST" -a -n "$HTTP_PROXY_PORT" ]; then
+    xml="$xml\
+      <proxy>\
+      <id>genhttpproxy</id>\
+      <active>true</active>\
+      <protocol>http</protocol>\
+      <host>$HTTP_PROXY_HOST</host>\
+      <port>$HTTP_PROXY_PORT</port>"
+    if [ -n "$HTTP_PROXY_USERNAME" -a -n "$HTTP_PROXY_PASSWORD" ]; then
+      xml="$xml\
+        <username>$HTTP_PROXY_USERNAME</username>\
+        <password>$HTTP_PROXY_PASSWORD</password>"
+    fi
+    if [ -n "$HTTP_PROXY_NONPROXYHOSTS" ]; then
+      xml="$xml\
+        <nonProxyHosts>$HTTP_PROXY_NONPROXYHOSTS</nonProxyHosts>"
+    fi
+    xml="$xml\
+      </proxy>"
+    sed -i "s|<!-- ### configured http proxy ### -->|$xml|" $HOME/.m2/settings.xml
+  fi
+}
+
+# insert settings for mirrors/repository managers into settings.xml if supplied
+function configure_mirrors() {
+  if [ -n "$MAVEN_MIRROR_URL" ]; then
+    xml="<mirror>\
+      <id>mirror.default</id>\
+      <url>$MAVEN_MIRROR_URL</url>\
+      <mirrorOf>external:*</mirrorOf>\
+    </mirror>"
+    sed -i "s|<!-- ### configured mirrors ### -->|$xml|" $HOME/.m2/settings.xml
+  fi
+}
+
+function move_artifacts() {
+  dir=$1
+  types=
+  shift
+  while [ $# -gt 0 ]; do
+    types="$types;$1"
+    shift
+  done
+
+  for d in $(echo $dir | tr "," "\n")
+  do
+    shift
+    for t in $(echo $types | tr ";" "\n")
+    do
+      echo "Moving all $t artifacts from $LOCAL_SOURCE_DIR/$d directory into $DEPLOY_DIR for later deployment..."
+      chgrp -fR 0 $LOCAL_SOURCE_DIR/$d/*.$t
+      chmod -fR g+rw $LOCAL_SOURCE_DIR/$d/*.$t
+      mv -v $LOCAL_SOURCE_DIR/$d/*.$t $DEPLOY_DIR 2> /dev/null
+    done
+  done
+}
+
+# Source code provided to S2I is at ${HOME}
+LOCAL_SOURCE_DIR=${HOME}
+mkdir -p $LOCAL_SOURCE_DIR
+
+# the subdirectory within LOCAL_SOURCE_DIR from where we should copy build
+# artifacts (*.war, *.jar)
+ARTIFACT_DIR=${ARTIFACT_DIR:-target}
+
+# Resulting WAR files will be deployed to /wildfly/standalone/deployments
+DEPLOY_DIR=/spring-boot
+mkdir -p $DEPLOY_DIR
+
+# Copy the source for compilation
+cp -Rf /tmp/src/. $LOCAL_SOURCE_DIR
+chgrp -R 0 $LOCAL_SOURCE_DIR
+chmod -R g+rw $LOCAL_SOURCE_DIR
+
+if [ -d $LOCAL_SOURCE_DIR/config ]; then
+  echo "Copying config files from project..."
+  if [ -f $LOCAL_SOURCE_DIR/config/settings.xml ]; then
+    mv $LOCAL_SOURCE_DIR/config/settings.xml $HOME/.m2
+  fi
+
+  cp -v $LOCAL_SOURCE_DIR/config/* /spring-boot/config/
+fi
+
+configure_proxy
+configure_mirrors
+restore_saved_artifacts
+
+pushd $LOCAL_SOURCE_DIR &> /dev/null
+
+if [ -z "$MAVEN_ARGS" ]; then
+  export MAVEN_ARGS="package -Popenshift -DskipTests -B"
+fi
+
+# If MAVEN_SETTINGS specified will always add to MAVEN_ARGS
+# Can be relative to application root
+# Can be global to image
+if [ ! -z "$MAVEN_SETTINGS" ]; then
+  if [[ "$MAVEN_SETTINGS" = /* ]]; then
+      [ ! -e "$MAVEN_SETTINGS" ] && echo "Specified settings file does not exist in the image. [$MAVEN_SETTINGS]" && exit 1
+      export MAVEN_ARGS="$MAVEN_ARGS -s $MAVEN_SETTINGS"
+  else
+      [ ! -e "$LOCAL_SOURCE_DIR/$MAVEN_SETTINGS" ] && echo "Specified settings file does not exist in your source code. [$MAVEN_SETTINGS]" && exit 1
+      export MAVEN_ARGS="$MAVEN_ARGS -s $LOCAL_SOURCE_DIR/$MAVEN_SETTINGS"
+  fi
+fi
+
+# Append user provided args
+if [ -n "$MAVEN_ARGS_APPEND" ]; then
+  export MAVEN_ARGS="$MAVEN_ARGS $MAVEN_ARGS_APPEND"
+fi
+
+CONTAINER_HEAP_PERCENT=${CONTAINER_HEAP_PERCENT:-0.50}
+CONTAINER_MEMORY_IN_BYTES=`cat /sys/fs/cgroup/memory/memory.limit_in_bytes`
+
+DEFAULT_MEMORY_CEILING=$((2**40-1))
+if [ "${CONTAINER_MEMORY_IN_BYTES}" -lt "${DEFAULT_MEMORY_CEILING}" ]; then
+  CONTAINER_MEMORY_IN_MB=$((${CONTAINER_MEMORY_IN_BYTES}/1024**2))
+  CONTAINER_HEAP_MAX=$(echo "${CONTAINER_MEMORY_IN_MB} ${CONTAINER_HEAP_PERCENT}" | awk '{ printf "%d", $1 * $2 }')
+  JAVA_HEAP_MAX=-Xmx${CONTAINER_HEAP_MAX}
+fi
+
+if [ -z $JAVA_GC_OPTS ]; then
+  # note - MaxPermSize no longer valid with v8 of the jdk ... used to have -XX:MaxPermSize=100m
+  JAVA_GC_OPTS="-XX:+UseParallelGC -XX:MinHeapFreeRatio=20 -XX:MaxHeapFreeRatio=40 -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90 -XX:MaxMetaspaceSize=100m"
+fi
+if [ ! -z "${CONTAINER_CORE_LIMIT}" ]; then
+  JAVA_CORE_LIMIT="-XX:ParallelGCThreads=${CONTAINER_CORE_LIMIT} -Djava.util.concurrent.ForkJoinPool.common.parallelism=${CONTAINER_CORE_LIMT} -XX:CICompilerCount=2"
+fi
+if [ ! -z "${USE_JAVA_DIAGNOSTICS}" ]; then
+  JAVA_DIAGNOSTICS="-XX:NativeMemoryTracking=summary -XX:+PrintGC -XX:+PrintGCDateStamps -XX:+PrintGCTimeStamps -XX:+UnlockDiagnosticVMOptions"
+fi
+
+# When arguments such as max heap size are repeated, the JVM respects the last value provided,
+# so by setting the user provided MAVEN_OPTS value last, we allow the user to override any 
+# of the values we calculated above.
+MAVEN_OPTS=$JAVA_GC_OPTS $JAVA_HEAP_MAX $JAVA_CORE_LIMIT $JAVA_DIAGNOSTICS $MAVEN_OPTS
+
+echo "Found pom.xml... attempting to build with 'mvn ${MAVEN_ARGS}'"
+
+mvn --version
+mvn $MAVEN_ARGS
+
+ERR=$?
+if [ $ERR -ne 0 ]; then
+  echo "Aborting due to error code $ERR from mvn package"
+  exit $ERR
+fi
+
+popd &> /dev/null
+
+FINAL_NAME=$(mvn help:effective-pom | perl -lne 'print $1 if (/<finalName[^>]*>\s*([^<]+?)\s*<\/finalName>/);')
+APP_JAR="$FINAL_NAME.jar"
+chgrp -fR 0 $LOCAL_SOURCE_DIR/$ARTIFACT_DIR/$APP_JAR
+chmod -fR g+rw $LOCAL_SOURCE_DIR/$ARTIFACT_DIR/$APP_JAR
+mv -v $LOCAL_SOURCE_DIR/$ARTIFACT_DIR/$APP_JAR $DEPLOY_DIR/app.jar 2> /dev/null
+echo "...done"

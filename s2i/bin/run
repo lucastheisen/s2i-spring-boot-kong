@@ -1,0 +1,3 @@
+#!/bin/bash -e
+
+exec java -jar /spring-boot/app.jar
