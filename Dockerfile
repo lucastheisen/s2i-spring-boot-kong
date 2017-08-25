@@ -1,4 +1,4 @@
-FROM openshift/base-centos7
+FROM centos/s2i-base-centos7
 
 EXPOSE 8080
 
