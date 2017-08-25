@@ -23,7 +23,8 @@ items:
       dockerStrategy:
         from:
           kind: ImageStreamTag
-          name: centos:7
+          #name: centos:7
+          name: s2i-base-centos7:latest
     triggers:
     - type: GitHub
       github:
@@ -33,6 +34,12 @@ items:
         secret: secret
     - type: ImageChange
       imageChange:
+- kind: ImageStream
+  apiVersion: v1
+  metadata: 
+    name: s2i-base-centos7
+  spec:
+    dockerImageRepository: centos/s2i-base-centos7
 - kind: ImageStream
   apiVersion: v1
   metadata: 
