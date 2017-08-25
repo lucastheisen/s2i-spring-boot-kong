@@ -1,3 +1,39 @@
 #!/bin/bash -e
 
+function checkKong {
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" $KONG_ROOTURI/apis/$API_NAME)
+    REGISTERED=1
+    if [ $HTTP_CODE -eq 200 ]; then
+        REGISTERED=0
+    fi
+    return $REGISTERED
+}
+
+if ! checkKong; then 
+    # One time kong registration
+    echo "not yet registered with kong, register now..."
+    curl -i -X POST $KONG_ROOTURI/apis/ \
+        -d "name=$API_NAME" \
+        -d "hosts=$API_HOSTS" \
+        -d "upstream_url=$API_UPSTREAM_URI"
+    if [ $API_JWT ]; then
+        echo "add the jwt plugin..."
+        curl -i -X POST $KONG_ROOTURI/apis/$API_NAME/plugins/ \
+            -d "name=jwt"
+        # CORS preflight OPTIONS workaround for Kong issue:
+        # https://github.com/Mashape/kong/issues/2643#issuecomment-323035353
+        curl -i -X POST $KONG_ROOTURI/apis/ \
+            -d "name=${API_NAME}-options" \
+            -d "hosts=$API_HOSTS" \
+            -d "methods=OPTIONS" \
+            -d "upstream_url=$API_UPSTREAM_URI"
+    fi
+fi
+
+if ! checkKong; then 
+    echo "unable to register with kong"
+    exit 1
+fi
+
+echo "running /spring-boot/app.jar"
 exec java -jar /spring-boot/app.jar

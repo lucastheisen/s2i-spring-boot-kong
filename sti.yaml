@@ -6,7 +6,7 @@ items:
 - kind: BuildConfig
   apiVersion: v1
   metadata:
-    name: s2i-spring-boot-kong-build
+    name: s2i-spring-boot-kong
   spec:
     output:
       to:
@@ -23,7 +23,6 @@ items:
       dockerStrategy:
         from:
           kind: ImageStreamTag
-          #name: centos:7
           name: s2i-base-centos7:latest
     triggers:
     - type: GitHub
@@ -40,21 +39,6 @@ items:
     name: s2i-base-centos7
   spec:
     dockerImageRepository: centos/s2i-base-centos7
-- kind: ImageStream
-  apiVersion: v1
-  metadata: 
-    name: centos
-  spec:
-    dockerImageRepository: library/centos
-    # Openshift only imports 5 images into the stream by default
-    # so we need to ensure 7 gets included
-    # https://github.com/openshift/origin/issues/7346
-    tags:
-    - annotations: null
-      from:
-        kind: DockerImage
-        name: library/centos:7
-      name: "7"
 - kind: ImageStream
   apiVersion: v1
   metadata: 
