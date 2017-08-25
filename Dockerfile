@@ -14,8 +14,7 @@ ARG MAVEN_NAME=apache-maven-${MAVEN_VERSION}
 LABEL io.k8s.description="Platform for building Spring Boot microservices exposed by Kong API Gateway" \
      io.k8s.display-name="Spring Boot Kong" \
      io.openshift.expose-services="8080:http" \
-     io.openshift.tags="builder,spring-boot,kong" \
-     io.openshift.s2i.scripts-url="image://${S2I_SCRIPTS_PATH}"
+     io.openshift.tags="builder,spring-boot,kong"
 
 RUN yum install -y java-1.8.0-openjdk-devel && \
     mkdir -p $M2_HOME && \
