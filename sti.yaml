@@ -1,0 +1,67 @@
+kind: List
+apiVersion: v1
+metadata: 
+  name: s2i-spring-boot-kong
+items:
+- kind: BuildConfig
+  apiVersion: v1
+  metadata:
+    name: s2i-spring-boot-kong-build
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: s2i-spring-boot-kong:latest
+    resources:
+    source:
+      type: Git
+      git:
+        uri: https://github.com/lucastheisen/s2i-spring-boot-kong.git
+        ref: master
+    strategy:
+      type: Docker
+      dockerStrategy:
+        from:
+          kind: ImageStreamTag
+          name: centos:7
+    triggers:
+    - type: GitHub
+      github:
+        secret: secret
+    - type: Generic
+      generic:
+        secret: secret
+    - type: ImageChange
+      imageChange:
+- kind: ImageStream
+  apiVersion: v1
+  metadata: 
+    name: centos
+  spec:
+    dockerImageRepository: library/centos
+    # Openshift only imports 5 images into the stream by default
+    # so we need to ensure 7 gets included
+    # https://github.com/openshift/origin/issues/7346
+    tags:
+    - annotations: null
+      from:
+        kind: DockerImage
+        name: library/centos:7
+      name: "7"
+- kind: ImageStream
+  apiVersion: v1
+  metadata: 
+    name: s2i-spring-boot-kong
+  spec:
+    dockerImageRepository:
+    tags:
+    - annotations:
+        description: Spring Boot microservice behind Kong API Gateway builder
+        iconClass: icon-jboss
+        tags: builder,springboot,java,maven
+        supports: springboot,java:8,maven:3
+        version: "1.0"
+      from:
+        kind: DockerImage
+        name: library/centos:7
+      name: "latest"
