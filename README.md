@@ -12,7 +12,24 @@ oc create -f $env:TEMP\sti.yaml
 ```powershell
 $url = 'https://raw.githubusercontent.com/lucastheisen/s2i-spring-boot-kong/master'
 Invoke-WebRequest $url/kong.yaml -OutFile $env:TEMP\kong.yaml
-oc process -f $env:TEMP\kong.yaml --param APP_NAMESPACE=$(oc project -q) | `
+oc process -f $env:TEMP\kong.yaml `
+    --param "APP_NAME=kong" `
+    --param "DATABASE_USERNAME=kong" `
+    --param "DATABASE_PASSWORD=kong" | `
+    oc apply -f -
+```
+
+## Install MongoDB
+```powershell
+$url = 'https://raw.githubusercontent.com/lucastheisen/s2i-spring-boot-kong/master'
+Invoke-WebRequest $url/mongodb.yaml -OutFile $env:TEMP\mongodb.yaml
+oc process -f $env:TEMP\mongodb.yaml `
+    --param "DATABASE_SERVICE_NAME=mongo" `
+    --param "MONGODB_USER=oddsalien" `
+    --param "MONGODB_PASSWORD=alsofoobar" `
+    --param "MONGODB_ADMIN_PASSWORD=foobar" `
+    --param "MONGODB_DATABASE=alien" `
+    --param "MONGODB_VERSION=3.2" | `
     oc apply -f -
 ```
 
