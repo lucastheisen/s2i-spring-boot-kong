@@ -16,7 +16,7 @@ items:
     source:
       type: Git
       git:
-        uri: https://github.com/lucastheisen/s2i-spring-boot-kong.git
+        uri: https://github.com/kevinbloomfield/s2i-spring-boot-kong.git
         ref: master
     strategy:
       type: Docker
