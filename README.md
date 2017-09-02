@@ -3,14 +3,14 @@
 
 ## Install this Builder
 ```powershell
-$url = 'https://raw.githubusercontent.com/lucastheisen/s2i-spring-boot-kong/master'
+$url = 'https://raw.githubusercontent.com/kevinbloomfield/s2i-spring-boot-kong/master'
 Invoke-WebRequest $url/sti.yaml -OutFile $env:TEMP\sti.yaml
 oc create -f $env:TEMP\sti.yaml
 ```
 
 ## Install Kong
 ```powershell
-$url = 'https://raw.githubusercontent.com/lucastheisen/s2i-spring-boot-kong/master'
+$url = 'https://raw.githubusercontent.com/kevinbloomfield/s2i-spring-boot-kong/master'
 Invoke-WebRequest $url/kong.yaml -OutFile $env:TEMP\kong.yaml
 oc process -f $env:TEMP\kong.yaml `
     --param "APP_NAME=kong" `
@@ -21,7 +21,7 @@ oc process -f $env:TEMP\kong.yaml `
 
 ## Install MongoDB
 ```powershell
-$url = 'https://raw.githubusercontent.com/lucastheisen/s2i-spring-boot-kong/master'
+$url = 'https://raw.githubusercontent.com/kevinbloomfield/s2i-spring-boot-kong/master'
 Invoke-WebRequest $url/mongodb.yaml -OutFile $env:TEMP\mongodb.yaml
 oc process -f $env:TEMP\mongodb.yaml `
     --param "DATABASE_SERVICE_NAME=mongo" `
