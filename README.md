@@ -51,7 +51,6 @@ oc process -f $env:TEMP\mongodb.yaml `
 ### bash
 ```bash
 $url = 'https://raw.githubusercontent.com/kevinbloomfield/s2i-spring-boot-kong/master'
-Invoke-WebRequest $url/mongodb.yaml -OutFile $env:TEMP\mongodb.yaml
 curl $url/mongodb.yaml | oc process -f - \
     --param "DATABASE_SERVICE_NAME=mongo" \
     --param "MONGODB_USER=oddsalien" \
