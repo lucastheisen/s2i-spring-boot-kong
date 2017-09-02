@@ -33,6 +33,6 @@ RUN chown -R 1001:0 /spring-boot && \
     chmod -R ug+rw $HOME
 
 # This default user is created in the openshift/base-centos7 image
-USER 1001
+# USER 1001
 
 CMD $STI_SCRIPTS_PATH/usage
