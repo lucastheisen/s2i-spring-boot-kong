@@ -22,7 +22,8 @@ if ! checkKong; then
     curl -i -X POST $KONG_ROOTURI/apis/ \
         -d "name=$API_NAME" \
         -d "hosts=$API_HOSTS" \
-        -d "upstream_url=$API_UPSTREAM_URI"
+        -d "upstream_url=$API_UPSTREAM_URI" \
+        -d "uris=/$API_NAME"
     if [ $API_JWT ]; then
         echo "add the jwt plugin..."
         curl -i -X POST $KONG_ROOTURI/apis/$API_NAME/plugins/ \
@@ -33,7 +34,8 @@ if ! checkKong; then
             -d "name=${API_NAME}-options" \
             -d "hosts=$API_HOSTS" \
             -d "methods=OPTIONS" \
-            -d "upstream_url=$API_UPSTREAM_URI"
+            -d "upstream_url=$API_UPSTREAM_URI" \
+            -d "uris=/${API_NAME}-options"
     fi
 fi
 
