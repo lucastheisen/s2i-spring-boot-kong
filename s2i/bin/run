@@ -1,5 +1,12 @@
 #!/bin/bash -e
 
+EXTERNAL_DOMAIN="apps.ocp.${DOMAIN_NAME}"
+INTERNAL_DOMAIN="${KUBERNETES_NAMESPACE}.svc.cluster.local"
+KONG_ROOTURI="kong.${INTERNAL_DOMAIN}:8001"
+API_HOSTS="${APP_NAME},kong-${KUBERNETES_NAMESPACE}.${EXTERNAL_DOMAIN}"
+API_NAME="${APP_NAME}-api"
+API_UPSTREAM_URI="${APP_NAME}.${INTERNAL_DOMAIN}:8080"
+
 function checkKong {
     HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" $KONG_ROOTURI/apis/$API_NAME)
     REGISTERED=1
@@ -34,6 +41,8 @@ if ! checkKong; then
     echo "unable to register with kong"
     exit 1
 fi
+
+export EXTERNAL_DOMAIN INTERNAL_DOMAIN KONG_ROOTURI API_HOSTS API_NAME API_UPSTREAM_URI
 
 echo "running /spring-boot/app.jar"
 exec java -jar /spring-boot/app.jar
