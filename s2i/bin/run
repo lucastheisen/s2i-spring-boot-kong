@@ -45,4 +45,4 @@ fi
 export EXTERNAL_DOMAIN INTERNAL_DOMAIN KONG_ROOTURI API_HOSTS API_NAME API_UPSTREAM_URI
 
 echo "running /spring-boot/app.jar"
-exec java -jar /spring-boot/app.jar
+exec java -jar /spring-boot/app.jar $APP_ARGS
