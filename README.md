@@ -5,13 +5,13 @@
 ### powershell
 ```powershell
 $url = 'https://raw.githubusercontent.com/kevinbloomfield/s2i-spring-boot-kong/master'
-Invoke-WebRequest $url/sti.yaml -OutFile $env:TEMP\sti.yaml
-oc create -f $env:TEMP\sti.yaml
+Invoke-WebRequest $url/s2i-sping-boot-kong.yaml -OutFile $env:TEMP\s2i-sping-boot-kong.yaml
+oc create -f $env:TEMP\s2i-sping-boot-kong.yaml
 ```
 ### bash
 ```bash
 url='https://raw.githubusercontent.com/kevinbloomfield/s2i-spring-boot-kong/master'
-curl $url/sti.yaml | oc create -f -
+curl $url/s2i-sping-boot-kong.yaml | oc create -f -
 ```
 
 ## Install Kong
