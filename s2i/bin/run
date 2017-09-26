@@ -1,5 +1,12 @@
 #!/bin/bash -e
 
+EXTERNAL_DOMAIN="apps.ocp.${DOMAIN_NAME}"
+INTERNAL_DOMAIN="${KUBERNETES_NAMESPACE}.svc.cluster.local"
+KONG_ROOTURI="http://kong.${INTERNAL_DOMAIN}:8001"
+API_HOSTS="${APP_NAME},kong-${KUBERNETES_NAMESPACE}.${EXTERNAL_DOMAIN}"
+API_NAME="${APP_NAME}-api"
+API_UPSTREAM_URI="http://${APP_NAME}.${INTERNAL_DOMAIN}:8080"
+
 function checkKong {
     HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" $KONG_ROOTURI/apis/$API_NAME)
     REGISTERED=1
@@ -15,7 +22,8 @@ if ! checkKong; then
     curl -i -X POST $KONG_ROOTURI/apis/ \
         -d "name=$API_NAME" \
         -d "hosts=$API_HOSTS" \
-        -d "upstream_url=$API_UPSTREAM_URI"
+        -d "upstream_url=$API_UPSTREAM_URI" \
+        -d "uris=/$API_NAME"
     if [ $API_JWT ]; then
         echo "add the jwt plugin..."
         curl -i -X POST $KONG_ROOTURI/apis/$API_NAME/plugins/ \
@@ -26,7 +34,8 @@ if ! checkKong; then
             -d "name=${API_NAME}-options" \
             -d "hosts=$API_HOSTS" \
             -d "methods=OPTIONS" \
-            -d "upstream_url=$API_UPSTREAM_URI"
+            -d "upstream_url=$API_UPSTREAM_URI" \
+            -d "uris=/${API_NAME}-options"
     fi
 fi
 
@@ -35,5 +44,7 @@ if ! checkKong; then
     exit 1
 fi
 
+export EXTERNAL_DOMAIN INTERNAL_DOMAIN KONG_ROOTURI API_HOSTS API_NAME API_UPSTREAM_URI
+
 echo "running /spring-boot/app.jar"
-exec java -jar /spring-boot/app.jar
+exec java -jar /spring-boot/app.jar $APP_ARGS
